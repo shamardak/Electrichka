@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Електричка"/>
+  <meta name="theme-color" content="#0a1210"/>
+  <title>Електричка</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --bg:#0a1210; --bg2:#0e1a13; --bg3:#121e15;
+      --green:#3ddc84; --yellow:#ffd740; --orange:#ff9800; --red:#ff5252; --blue:#64b5f6;
+      --dim:#1e3a28; --txt:#a8d5b8; --r:14px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    body{background:var(--bg);color:var(--txt);font-family:'Nunito',sans-serif;min-height:100dvh;overflow-x:hidden;}
+    .app{padding:env(safe-area-inset-top,10px) 14px env(safe-area-inset-bottom,16px);max-width:480px;margin:0 auto;}
+
+    /* ── ROW 1: напрямок + замок + час ── */
+    .row1{display:flex;align-items:center;gap:8px;padding:10px 0 8px;border-bottom:1px solid var(--dim);margin-bottom:8px;}
+    .dir-btn{
+      flex:1;min-width:0;padding:8px 12px;border-radius:10px;
+      border:1.5px solid var(--dim);background:var(--bg2);
+      cursor:pointer;transition:all .2s;text-align:center;
+    }
+    .dir-btn:active{opacity:.7;}
+    .dir-stations{font-size:14px;font-weight:900;color:var(--txt);display:flex;align-items:center;justify-content:center;gap:6px;}
+    .dir-arrow{color:var(--green);font-size:16px;}
+    .dir-hint{font-size:8px;color:#5a9a6a;margin-top:2px;letter-spacing:1px;}
+    .lock-btn{
+      width:42px;height:42px;flex-shrink:0;border-radius:10px;
+      border:1.5px solid var(--dim);background:var(--bg2);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      font-size:18px;transition:all .2s;
+    }
+    .lock-btn.on{border-color:var(--yellow);background:#141e10;}
+    .clk{flex-shrink:0;text-align:right;}
+    .clk-t{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--yellow);letter-spacing:1px;text-shadow:0 0 10px #ffd74044;line-height:1;}
+    .clk-d{font-size:7px;color:#5a9a6a;margin-top:2px;text-transform:capitalize;white-space:nowrap;}
+
+    /* ── ROW 2: кнопки ── */
+    .row2{display:flex;gap:8px;margin-bottom:8px;}
+    .btn-ref{
+      flex:2;padding:12px 0;border-radius:var(--r);
+      border:1.5px solid #1c4a2a;background:#0c1f0e;
+      color:var(--green);font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;cursor:pointer;
+    }
+    .btn-ref:disabled{color:#4a8a60;border-color:var(--dim);cursor:wait;}
+    .btn-plus{
+      flex:1;padding:12px 0;border-radius:var(--r);
+      border:1.5px solid var(--dim);background:var(--bg2);
+      color:#6aaa80;font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;cursor:pointer;
+    }
+    .btn-plus.lit{border-color:var(--yellow);color:var(--yellow);}
+
+    /* ── ROW 3: вікно часу + джерело ── */
+    .row3{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;background:var(--bg2);border-radius:10px;margin-bottom:8px;}
+    .row3.tmrw{border:1px solid #1a3a5a;}
+    .win-lbl{font-family:'Share Tech Mono',monospace;font-size:12px;color:#d0f0e0;font-weight:bold;letter-spacing:1px;}
+    .src-lbl{font-size:10px;color:#6aaa80;text-align:right;white-space:nowrap;}
+
+    /* ── Status ── */
+    .sbox{border-radius:10px;padding:7px 12px;font-size:10px;margin-bottom:8px;line-height:1.5;}
+    .sbox.idle{background:var(--bg2);color:#5a9a6a;}
+    .sbox.ok{background:#091a0e;border:1px solid #1a4a28;color:#4adc80;}
+    .sbox.err{background:#150a0a;border:1px solid #5a1a1a;color:#cc5050;}
+    .sbox.load{background:#111a0a;border:1px solid #2a4a10;color:var(--yellow);}
+
+    /* ── Tomorrow banner ── */
+    .tbanner{background:#0a0f1a;border:1px solid #1a3a5a;border-radius:10px;padding:9px 13px;font-size:11px;color:#4a8ab6;margin-bottom:8px;text-align:center;display:none;}
+    .tbanner b{color:var(--blue);}
+
+    /* ── Cards ── */
+    .list{display:flex;flex-direction:column;gap:5px;}
+    .card{background:var(--bg2);border-radius:var(--r);border:1.5px solid transparent;padding:11px 13px;display:grid;grid-template-columns:70px 1fr auto;align-items:center;gap:8px;}
+    .card.gone  {opacity:.80;background:#0c1a0e;}
+    .card.active{border-color:#1c4a2a;background:#0c1a0e;}
+    .card.next  {border-color:var(--yellow);background:#141e10;box-shadow:0 0 14px #ffd74012;}
+    .card.warn  {border-color:var(--orange);background:#16120a;}
+    .card.fire  {border-color:var(--red);background:#160808;box-shadow:0 0 14px #ff525212;}
+    .card.tmrw  {border-color:#1a4a7a;background:#0a0f1a;}
+    .card.tfst  {border-color:var(--blue);background:#090f1a;box-shadow:0 0 14px #64b5f612;}
+
+    .dep{font-family:'Share Tech Mono',monospace;font-size:24px;line-height:1;color:var(--txt);}
+    .card.active .dep{color:var(--green);}
+    .card.next   .dep{color:var(--yellow);}
+    .card.warn   .dep{color:var(--orange);}
+    .card.fire   .dep{color:var(--red);}
+    .card.gone   .dep{color:#5a8a62;}
+    .card.tmrw   .dep{color:#4a8ab6;}
+    .card.tfst   .dep{color:var(--blue);text-shadow:0 0 10px #64b5f644;}
+
+    .bdg{font-size:7px;font-weight:900;letter-spacing:1px;padding:1px 5px;border-radius:3px;margin-top:3px;display:inline-block;}
+    .card.next .bdg,.card.fire .bdg{color:var(--yellow);background:#ffd74018;}
+    .card.fire .bdg{color:var(--red);background:#ff525218;}
+    .card.tfst .bdg{color:var(--blue);background:#64b5f618;}
+
+    .mid{display:flex;flex-direction:column;gap:2px;}
+    .arr{font-family:'Share Tech Mono',monospace;font-size:17px;color:var(--txt);}
+    .card.gone .arr{color:#4a7a58;}
+    .card.tmrw .arr,.card.tfst .arr{color:#4a8ab6;}
+    .dur{font-size:12px;color:var(--txt);font-weight:900;margin-bottom:2px;}
+    .rte{font-size:10px;color:#5aaa78;margin-top:2px;font-weight:700;}
+
+    .right{text-align:right;}
+    .ctd{font-family:'Share Tech Mono',monospace;font-size:10px;color:#6aaa80;font-style:italic;}
+    .card.active .ctd{color:var(--green);font-style:normal;}
+    .card.next   .ctd{color:var(--yellow);font-style:normal;font-weight:bold;}
+    .card.warn   .ctd{color:var(--orange);}
+    .card.fire   .ctd{color:var(--red);font-weight:bold;}
+    .card.gone   .ctd{color:#4a6a52;}
+    .card.tmrw   .ctd,.card.tfst .ctd{color:#4a8ab6;font-style:normal;}
+    .num{font-size:10px;color:#5aaa78;margin-top:2px;font-weight:700;}
+
+    .empty{text-align:center;padding:32px 16px;color:#4a8a60;font-size:13px;line-height:2;}
+    .empty-i{font-size:36px;margin-bottom:6px;}
+
+    .toggle{width:100%;margin-top:10px;padding:10px;background:transparent;border:1px solid var(--dim);border-radius:10px;color:#5a9a6a;font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;}
+    .toggle-tmrw{width:100%;margin-top:6px;padding:10px;background:#090f1a;border:1px solid #1a3a5a;border-radius:10px;color:var(--blue);font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;}
+
+    .footer{margin-top:16px;text-align:center;font-size:9px;color:#1e3a28;letter-spacing:1px;padding-bottom:6px;}
+    .footer a{color:#2a5a38;text-decoration:none;}
+
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+    .pulsing{animation:pulse .7s ease-in-out infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .spinning{display:inline-block;animation:spin 1s linear infinite;}
+
+    /* ── Modal ── */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;}
+    .modal-overlay.open{opacity:1;pointer-events:all;}
+    .modal{background:#0e1a13;border:1px solid var(--dim);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 16px 32px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:90dvh;display:flex;flex-direction:column;}
+    .modal-overlay.open .modal{transform:translateY(0);}
+    .modal-title{font-size:13px;font-weight:900;color:var(--green);letter-spacing:2px;margin-bottom:16px;text-align:center;}
+    .modal-fields{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
+    .field-label{font-size:9px;color:#5a9a6a;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
+    .field-wrap{position:relative;}
+    .field-input{width:100%;padding:12px 14px;background:var(--bg);border:1.5px solid var(--dim);border-radius:10px;color:var(--txt);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;outline:none;transition:border-color .15s;}
+    .field-input:focus{border-color:var(--green);}
+    .autocomplete{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:200;background:#0e1a13;border:1px solid #1c4a2a;border-radius:10px;max-height:200px;overflow-y:auto;display:none;}
+    .autocomplete.show{display:block;}
+    .ac-item{padding:10px 14px;font-size:13px;font-weight:700;color:var(--txt);cursor:pointer;border-bottom:1px solid #0a1210;}
+    .ac-item:last-child{border-bottom:none;}
+    .ac-item:active{background:#121e15;}
+    .ac-item mark{background:transparent;color:var(--green);font-weight:900;}
+    .swap-btn{align-self:center;padding:8px 20px;background:transparent;border:1px solid var(--dim);border-radius:20px;color:#5a9a6a;font-family:'Nunito',sans-serif;font-size:11px;cursor:pointer;margin:4px 0;letter-spacing:1px;}
+    .modal-actions{display:flex;gap:8px;margin-top:4px;}
+    .modal-cancel{flex:1;padding:12px;background:transparent;border:1px solid var(--dim);border-radius:10px;color:#5a9a6a;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;cursor:pointer;}
+    .modal-ok{flex:2;padding:12px;background:#0c1f0e;border:1.5px solid var(--green);border-radius:10px;color:var(--green);font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;cursor:pointer;}
+
+    /* ── Load overlay ── */
+    .load-overlay{position:fixed;inset:0;background:rgba(10,18,16,.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;pointer-events:none;transition:opacity .3s;}
+    .load-overlay.show{opacity:1;pointer-events:all;}
+    .load-icon{font-size:40px;}
+    .load-text{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--green);letter-spacing:2px;text-align:center;}
+    .load-sub{font-size:10px;color:#5a9a6a;letter-spacing:1px;text-align:center;}
+    .load-bar-wrap{width:200px;height:3px;background:var(--dim);border-radius:2px;overflow:hidden;}
+    .load-bar{height:100%;background:var(--green);border-radius:2px;width:0%;transition:width .3s;}
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ROW 1: напрямок + замок + час -->
+  <div class="row1">
+    <button class="dir-btn" id="dir-btn" onclick="onDirBtn()">
+      <div class="dir-stations">
+        <span id="from-name">Тарасівка</span>
+        <span class="dir-arrow">→</span>
+        <span id="to-name">Київ</span>
+      </div>
+      <div class="dir-hint" id="dir-hint">натисніть — реверс</div>
+    </button>
+    <button class="lock-btn" id="lock-btn" onclick="toggleLock()">🔒</button>
+    <div class="clk">
+      <div class="clk-t" id="clock">--:--</div>
+      <div class="clk-d" id="date"></div>
+    </div>
+  </div>
+
+  <!-- ROW 2: кнопки -->
+  <div class="row2">
+    <button class="btn-ref" id="btn-ref" onclick="doRefresh()">🔄 Оновити з сайту</button>
+    <button class="btn-plus" id="btn-plus" onclick="addWindow()">+3 год</button>
+  </div>
+
+  <!-- ROW 3: вікно часу + джерело -->
+  <div class="row3" id="row3">
+    <span class="win-lbl" id="win-lbl">⏱ -- — --</span>
+    <span class="src-lbl" id="src-lbl">poizdato.net</span>
+  </div>
+
+  <div class="sbox idle" id="sbox">📋 Натисніть «Оновити» щоб завантажити актуальний розклад</div>
+  <div id="tbanner" class="tbanner"></div>
+  <div id="content" class="list"></div>
+  <button class="toggle"      id="toggle-btn"  onclick="toggleAll()"     style="display:none"></button>
+  <button class="toggle-tmrw" id="tmrw-btn"    onclick="toggleTmrwAll()" style="display:none">🌙 Завтра — весь день</button>
+
+  <footer class="footer">
+    Джерело: <a href="https://poizdato.net" target="_blank">poizdato.net</a> · Уточнюйте на вокзалі
+  </footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title">✏️ ВИБІР МАРШРУТУ</div>
+    <div class="modal-fields">
+      <div>
+        <div class="field-label">Відправлення</div>
+        <div class="field-wrap">
+          <input class="field-input" id="from-input" type="text" placeholder="Введіть станцію..." autocomplete="off" oninput="onInput('from')" onfocus="onFocus('from')"/>
+          <div class="autocomplete" id="from-ac"></div>
+        </div>
+      </div>
+      <button class="swap-btn" onclick="swapStations()">⇅ Поміняти місцями</button>
+      <div>
+        <div class="field-label">Прибуття</div>
+        <div class="field-wrap">
+          <input class="field-input" id="to-input" type="text" placeholder="Введіть станцію..." autocomplete="off" oninput="onInput('to')" onfocus="onFocus('to')"/>
+          <div class="autocomplete" id="to-ac"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Скасувати</button>
+      <button class="modal-ok"     onclick="applyStations()">✓ Застосувати</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="load-overlay" id="load-overlay">
+  <div class="load-icon spinning">🚆</div>
+  <div class="load-text" id="load-text">ЗАВАНТАЖЕННЯ</div>
+  <div class="load-sub" id="load-sub">Будь ласка, зачекайте...</div>
+  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+</div>
+
+<script>
+// ── Стан ──────────────────────────────────────────────────────────────────────
+var S = {
+  fromName:'Тарасівка', fromSlug:'tarasivka,kyivska-obl',
+  toName:'Київ',        toSlug:'kyiv',
+  winHours:3, showAll:false, showTmrwAll:false,
+  locked:true, fetching:false,
+};
+var cache    = {};
+var stations = [];
+var mFrom = null, mTo = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', loadStations);
+
+async function loadStations() {
+  showLoad('СПИСОК СТАНЦІЙ','Завантажую список станцій...',20);
+  try {
+    var r = await fetch('/.netlify/functions/stations',{signal:AbortSignal.timeout(15000)});
+    stations = await r.json();
+    setLoadBar(90); setLoadSub('Готово! '+stations.length+' станцій');
+    setTimeout(hideLoad, 500);
+  } catch(e) {
+    setLoadSub('Список недоступний — можна вводити вручну');
+    setTimeout(hideLoad, 800);
+  }
+}
+
+// ── Loading ────────────────────────────────────────────────────────────────────
+function showLoad(t,s,p){
+  document.getElementById('load-text').textContent=t||'';
+  document.getElementById('load-sub').textContent=s||'';
+  document.getElementById('load-bar').style.width=(p||0)+'%';
+  document.getElementById('load-overlay').classList.add('show');
+}
+function setLoadBar(p){document.getElementById('load-bar').style.width=p+'%';}
+function setLoadSub(t){document.getElementById('load-sub').textContent=t;}
+function hideLoad(){document.getElementById('load-overlay').classList.remove('show');}
+
+// ── Direction ──────────────────────────────────────────────────────────────────
+function onDirBtn() {
+  if (S.locked) {
+    var t={name:S.fromName,slug:S.fromSlug};
+    S.fromName=S.toName; S.fromSlug=S.toSlug;
+    S.toName=t.name;     S.toSlug=t.slug;
+    S.winHours=3; S.showAll=false; S.showTmrwAll=false;
+    updateDirUI(); doRefresh();
+  } else { openModal(); }
+}
+
+function toggleLock() {
+  S.locked=!S.locked;
+  var b=document.getElementById('lock-btn');
+  if(S.locked){ b.textContent='🔒'; b.className='lock-btn'; document.getElementById('dir-hint').textContent='натисніть — реверс'; }
+  else { b.textContent='🔓'; b.className='lock-btn on'; document.getElementById('dir-hint').textContent='натисніть — обрати станції'; }
+}
+
+function updateDirUI(){
+  document.getElementById('from-name').textContent=S.fromName;
+  document.getElementById('to-name').textContent=S.toName;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────────
+function openModal(){
+  mFrom={name:S.fromName,slug:S.fromSlug};
+  mTo={name:S.toName,slug:S.toSlug};
+  document.getElementById('from-input').value=S.fromName;
+  document.getElementById('to-input').value=S.toName;
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(function(){document.getElementById('from-input').focus();},350);
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('from-ac').classList.remove('show');
+  document.getElementById('to-ac').classList.remove('show');
+}
+function onOverlayClick(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+function onFocus(f){showAC(f,document.getElementById(f+'-input').value);}
+function onInput(f){
+  if(f==='from')mFrom=null; else mTo=null;
+  showAC(f,document.getElementById(f+'-input').value);
+}
+function showAC(f,q){
+  var ac=document.getElementById(f+'-ac');
+  if(!q||q.length<1){ac.classList.remove('show');return;}
+  var ql=q.toLowerCase();
+  var ms=stations.filter(function(s){return s.name.toLowerCase().includes(ql);}).slice(0,8);
+  if(!ms.length){ac.classList.remove('show');return;}
+  ac.innerHTML=ms.map(function(s){
+    var hi=s.name.replace(new RegExp('('+escRe(q)+')','gi'),'<mark>$1</mark>');
+    return '<div class="ac-item" onclick="selSt(\''+f+'\',\''+escQ(s.name)+'\',\''+escQ(s.slug)+'\')">'+hi+'</div>';
+  }).join('');
+  ac.classList.add('show');
+}
+function selSt(f,name,slug){
+  document.getElementById(f+'-input').value=name;
+  document.getElementById(f+'-ac').classList.remove('show');
+  if(f==='from')mFrom={name:name,slug:slug}; else mTo={name:name,slug:slug};
+}
+function swapStations(){
+  var fv=document.getElementById('from-input').value;
+  var tv=document.getElementById('to-input').value;
+  document.getElementById('from-input').value=tv;
+  document.getElementById('to-input').value=fv;
+  var t=mFrom; mFrom=mTo; mTo=t;
+  document.getElementById('from-ac').classList.remove('show');
+  document.getElementById('to-ac').classList.remove('show');
+}
+function applyStations(){
+  if(!mFrom){var v=document.getElementById('from-input').value.trim();mFrom=findSt(v)||{name:v,slug:slugify(v)};}
+  if(!mTo)  {var v2=document.getElementById('to-input').value.trim();mTo=findSt(v2)||{name:v2,slug:slugify(v2)};}
+  S.fromName=mFrom.name; S.fromSlug=mFrom.slug;
+  S.toName=mTo.name;     S.toSlug=mTo.slug;
+  S.winHours=3; S.showAll=false; S.showTmrwAll=false;
+  closeModal(); updateDirUI();
+  delete cache[ckey()]; doRefresh();
+}
+function findSt(n){var q=n.toLowerCase();return stations.find(function(s){return s.name.toLowerCase()===q;})||null;}
+function slugify(n){
+  var m={'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','є':'ie','ж':'zh','з':'z','и':'y','і':'i','ї':'i','й':'i','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'iu','я':'ia',' ':'-',"'":''};
+  return n.toLowerCase().split('').map(function(c){return m[c]!==undefined?m[c]:c;}).join('');
+}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function escQ(s){return s.replace(/'/g,"\\'");}
+
+// ── Fetch ──────────────────────────────────────────────────────────────────────
+function ckey(){return S.fromSlug+'--'+S.toSlug;}
+
+async function doRefresh(){
+  if(S.fetching)return;
+  S.fetching=true;
+  var btn=document.getElementById('btn-ref');
+  btn.disabled=true; btn.classList.add('pulsing');
+  showLoad('ЗАВАНТАЖЕННЯ','→ '+S.fromName+' → '+S.toName,30);
+  try {
+    var url='/.netlify/functions/schedule_v2?from='+encodeURIComponent(S.fromName)+'&to='+encodeURIComponent(S.toName)+'&fromSlug='+encodeURIComponent(S.fromSlug)+'&toSlug='+encodeURIComponent(S.toSlug);
+    var r=await fetch(url,{signal:AbortSignal.timeout(15000)});
+    setLoadBar(70);
+    if(!r.ok)throw new Error('Сервер: '+r.status);
+    var d=await r.json();
+    if(d.error)throw new Error(d.error);
+    if(!d.trains||d.trains.length===0)throw new Error('Порожній розклад'+(d.debug?': '+d.debug.slice(0,60):''));
+    cache[ckey()]={trains:d.trains,fetchedAt:d.fetchedAt};
+    setLoadBar(100);
+    var t=new Date(d.fetchedAt).toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('src-lbl').textContent='✅ poizdato.net · о '+t+' · '+d.trains.length+' рейсів';
+    document.getElementById('sbox').style.display='none';
+    setTimeout(function(){hideLoad();render();},300);
+  } catch(e){
+    hideLoad();
+    var sb=document.getElementById('sbox'); sb.style.display=''; setSbox('err','⚠ '+e.message);
+    render();
+  } finally {
+    btn.disabled=false; btn.classList.remove('pulsing');
+    btn.textContent='🔄 Оновити з сайту'; S.fetching=false;
+  }
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────────
+function addWindow(){
+  S.winHours+=3; S.showAll=false; S.showTmrwAll=false;
+  document.getElementById('btn-plus').className='btn-plus lit';
+  if(!cache[ckey()])doRefresh(); else render();
+}
+function toggleAll(){S.showAll=!S.showAll;if(S.showAll)S.showTmrwAll=false;render();}
+function toggleTmrwAll(){S.showTmrwAll=!S.showTmrwAll;if(S.showTmrwAll)S.showAll=false;render();}
+function setSbox(cls,html){var e=document.getElementById('sbox');e.className='sbox '+cls;e.innerHTML=html;}
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+function toMin(t){var p=t.split(':');return +p[0]*60 + +p[1];}
+
+function getNow(){
+  var d=new Date(),h=d.getHours(),m=d.getMinutes();
+  var pad=function(n){return String(n).padStart(2,'0');};
+  var em=h*60+m+S.winHours*60;
+  return{str:pad(h)+':'+pad(m),end:pad(Math.floor(em/60)%24)+':'+pad(em%60),
+    date:d.toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'}),min:h*60+m};
+}
+
+function fmtL(dep,now){
+  var d=dep-now;
+  if(d<=0) return{t:'відправилась',c:'gone'};
+  if(d<=5) return{t:d+' хв !!!',c:'fire'};
+  if(d<=15)return{t:'через '+d+' хв',c:'warn'};
+  if(d<60) return{t:'через '+d+' хв',c:''};
+  return{t:'через '+Math.floor(d/60)+'г '+(d%60)+'хв',c:''};
+}
+function fmtT(dep){return'завтра о '+String(Math.floor(dep/60)).padStart(2,'0')+':'+String(dep%60).padStart(2,'0');}
+
+function render(){
+  var now=getNow();
+  var entry=cache[ckey()]; var trains=entry?entry.trains:[];
+
+  // Row3
+  var r3=document.getElementById('row3');
+  var wl=document.getElementById('win-lbl');
+
+  if(!trains.length){
+    r3.className='row3'; wl.textContent='⏱ '+now.str+' — '+now.end;
+    document.getElementById('content').innerHTML='<div class="empty"><div class="empty-i">🕐</div>Завантажте розклад</div>';
+    document.getElementById('toggle-btn').style.display='none';
+    document.getElementById('tmrw-btn').style.display='none';
+    document.getElementById('tbanner').style.display='none';
+    return;
+  }
+
+  var inWin=trains.filter(function(t){var d=toMin(t.dep);return d>=now.min&&d<=now.min+S.winHours*60;});
+  var isTmrw=!S.showAll&&!S.showTmrwAll&&inWin.length===0;
+  var tmrw=[];
+  if(isTmrw){var f=toMin(trains[0].dep);tmrw=trains.filter(function(t){var d=toMin(t.dep);return d>=f&&d<=f+180;});}
+
+  var shown=S.showTmrwAll?trains:(S.showAll?trains:(isTmrw?tmrw:inWin));
+
+  // Row3 update
+  if(isTmrw){
+    r3.className='row3 tmrw';
+    wl.textContent='🌙 Сьогодні рейсів більше немає';
+  } else {
+    r3.className='row3';
+    var extra=S.winHours>3?' (+' +(S.winHours-3)+'г)':'';
+    wl.textContent='⏱ '+now.str+' — '+now.end+extra;
+  }
+
+  // Banner
+  var bn=document.getElementById('tbanner');
+  if(isTmrw&&!S.showAll&&!S.showTmrwAll){bn.style.display='block';bn.innerHTML='🌙 Наступні рейси — <b>завтра о '+trains[0].dep+'</b>';}
+  else bn.style.display='none';
+
+  // Toggle buttons
+  var tb=document.getElementById('toggle-btn');
+  tb.style.display=(S.showAll||isTmrw||inWin.length<trains.length)?'block':'none';
+  tb.textContent=S.showAll?'↑ Лише наступні рейси':'↓ Весь день ('+trains.length+' рейсів)';
+  document.getElementById('tmrw-btn').style.display='block';
+  document.getElementById('tmrw-btn').textContent=S.showTmrwAll?'↑ Сховати завтра':'🌙 Завтра — весь день';
+
+  var nIdx=S.showAll?trains.findIndex(function(t){return toMin(t.dep)>=now.min;}): -1;
+
+  document.getElementById('content').innerHTML=shown.map(function(t,i){
+    var dep=toMin(t.dep);
+    var isPast=!isTmrw&&!S.showTmrwAll&&dep<now.min;
+    var isFirst=isTmrw?i===0:(S.showAll?i===nIdx:(S.showTmrwAll?i===0:i===0));
+    var ct,cc;
+    if(isTmrw||S.showTmrwAll){ct=fmtT(dep);cc='';}
+    else{var fl=fmtL(dep,now.min);ct=fl.t;cc=fl.c;}
+
+    var cls='card';
+    if(isPast)                          cls+=' gone';
+    else if(S.showTmrwAll&&i===0)      cls+=' tfst';
+    else if(S.showTmrwAll)             cls+=' tmrw';
+    else if(isTmrw&&i===0)             cls+=' tfst';
+    else if(isTmrw)                    cls+=' tmrw';
+    else if(isFirst&&cc==='fire')      cls+=' fire';
+    else if(isFirst)                   cls+=' next';
+    else if(cc==='fire')               cls+=' fire';
+    else if(cc==='warn')               cls+=' warn';
+    else                               cls+=' active';
+
+    var badge='';
+    if(!isPast){
+      if((isTmrw||S.showTmrwAll)&&i===0) badge='<div class="bdg">▶ ПЕРША ЗАВТРА</div>';
+      else if(isFirst&&!isTmrw&&!S.showTmrwAll) badge='<div class="bdg">▶ НАСТУПНА</div>';
+    }
+
+    return '<div class="'+cls+'">'+
+      '<div><div class="dep">'+t.dep+'</div>'+badge+'</div>'+
+      '<div class="mid"><div class="arr">'+t.arr+'</div><div class="dur">'+t.dur+'</div><div class="rte">'+t.route+'</div></div>'+
+      '<div class="right"><div class="ctd">'+ct+'</div><div class="num">№'+t.num+'</div></div>'+
+    '</div>';
+  }).join('');
+}
+
+function tick(){
+  var now=getNow();
+  document.getElementById('clock').textContent=now.str;
+  document.getElementById('date').textContent=now.date;
+  render();
+}
+tick(); setInterval(tick,15000);
+</script>
+</body>
+</html>
